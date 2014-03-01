@@ -34,9 +34,12 @@ def process_file(filename, address):
         funcname = decode_funcname(dwarfinfo, address)
         file, line = decode_file_line(dwarfinfo, address)
 
-        print('Function:', bytes2str(funcname))
-        print('File:', bytes2str(file))
-        print('Line:', line)
+        if funcname:
+            print('Function:', bytes2str(funcname))
+        if file:
+            print('File:', bytes2str(file))
+        if line:
+            print('Line:', line)
 
 
 def decode_funcname(dwarfinfo, address):
@@ -62,24 +65,28 @@ def decode_file_line(dwarfinfo, address):
     # one that describes the given address.
     for CU in dwarfinfo.iter_CUs():
         # First, look at line programs to find the file/line for the address
-        lineprog = dwarfinfo.line_program_for_CU(CU)
+        lineprog = dwarfinfo.line_program_for_CU(CU) 
         prevstate = None
         for entry in lineprog.get_entries():
             # We're interested in those entries where a new state is assigned
             if entry.state is None or entry.state.end_sequence:
                 continue
+                
             # Looking for a range of addresses in two consecutive states that
             # contain the required address.
             if prevstate and prevstate.address <= address < entry.state.address:
                 filename = lineprog['file_entry'][prevstate.file - 1].name
                 line = prevstate.line
                 return filename, line
+            elif address == entry.state.address:
+                filename = lineprog['file_entry'][entry.state.file - 1].name
+                line = entry.state.line
+                return filename, line
             prevstate = entry.state
     return None, None
 
 
 if __name__ == '__main__':
-    for filename in sys.argv[1:]:
-        # For testing we use a hardcoded address.
-        process_file(filename, 0x400503)
+    process_file(sys.argv[1], int(sys.argv[2], 0))
+
 
